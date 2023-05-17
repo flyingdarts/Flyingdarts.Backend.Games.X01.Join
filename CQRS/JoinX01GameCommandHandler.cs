@@ -9,6 +9,9 @@ using Flyingdarts.Lambdas.Shared;
 using Flyingdarts.Shared;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using Amazon.DynamoDBv2.DocumentModel;
 
 public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
 {
@@ -21,13 +24,18 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
     }
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
-        await JoinGame(request.GameId, request.PlayerId, cancellationToken);
-
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
             Action = "v2/games/x01/join",
             Message = request
         };
+        var game = await GetGameAsync(request.GameId, cancellationToken);
+
+        if (game is not null)
+        {
+            await JoinGame(request.GameId, request.PlayerId, cancellationToken);
+            socketMessage.Message.Game = game;
+        }
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
 
@@ -37,5 +45,19 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         var gamePlayerWrite = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig()); gamePlayerWrite.AddPutItem(gamePlayer);
 
         await gamePlayerWrite.ExecuteAsync(cancellationToken);
+    }
+
+    private async Task<Game> GetGameAsync(long gameId, CancellationToken cancellationToken)
+    {
+        var games = await _dbContext.FromQueryAsync<Game>(X01GamesQueryConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
+            .GetRemainingAsync(cancellationToken);
+        return games.Where(x => x.Status == GameStatus.Qualifying).ToList().Single();
+    }
+
+    private static QueryOperationConfig X01GamesQueryConfig(string gameId)
+    {
+        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.Game);
+        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
+        return new QueryOperationConfig { Filter = queryFilter };
     }
 }
