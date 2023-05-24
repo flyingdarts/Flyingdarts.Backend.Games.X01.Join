@@ -39,6 +39,10 @@ public class InnerHandler
         if (request?.Message is null)
             throw new BadRequestException("Unable to parse request.", typeof(JoinX01GameCommand));
 
+        // Get the ConnectionId so we can match Connections with GamePlayers
+        if (string.IsNullOrWhiteSpace(request.ConnectionId))
+            request.Message.ConnectionId = request.ConnectionId;
+
         // Send the message to the mediator for further processing
         return await _mediator.Send(request.Message);
     }

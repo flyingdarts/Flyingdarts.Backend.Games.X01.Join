@@ -9,4 +9,5 @@ public class JoinX01GameCommand : IRequest<APIGatewayProxyResponse>
     public Guid PlayerId { get; set; }
     public string PlayerName { get; set; }
     public Game? Game { get; set; }
+    internal string ConnectionId { get; set; }
 }
