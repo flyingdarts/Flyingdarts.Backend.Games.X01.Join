@@ -40,7 +40,7 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
 
-    private async Task JoinGame(long gameId, Guid playerId, CancellationToken cancellationToken)
+    private async Task JoinGame(long gameId, long playerId, CancellationToken cancellationToken)
     {
         var gamePlayer = GamePlayer.Create(gameId, playerId);
         var gamePlayerWrite = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig()); gamePlayerWrite.AddPutItem(gamePlayer);
