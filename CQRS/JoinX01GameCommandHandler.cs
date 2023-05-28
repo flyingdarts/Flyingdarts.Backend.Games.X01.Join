@@ -25,6 +25,7 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
         var gameId = long.Parse(request.GameId);
+        var playerId = long.Parse(request.PlayerId);
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
             Action = "v2/games/x01/join",
@@ -34,7 +35,7 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
 
         if (game is not null)
         {
-            await JoinGame(gameId, request.PlayerId, cancellationToken);
+            await JoinGame(gameId, playerId, cancellationToken);
             socketMessage.Message.Game = game;
         }
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };

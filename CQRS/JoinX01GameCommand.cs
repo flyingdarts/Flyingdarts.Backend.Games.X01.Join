@@ -5,7 +5,7 @@ using MediatR;
 public class JoinX01GameCommand : IRequest<APIGatewayProxyResponse>
 {
     public string GameId { get; set; }
-    public long PlayerId { get; set; }
+    public string PlayerId { get; set; }
     public string PlayerName { get; set; }
     public Game? Game { get; set; }
     internal string ConnectionId { get; set; }
