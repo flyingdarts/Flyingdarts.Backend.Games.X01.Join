@@ -25,7 +25,7 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
         var gameId = long.Parse(request.GameId);
-        var playerId = long.Parse(request.PlayerId);
+
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
             Action = "v2/games/x01/join",
@@ -35,13 +35,13 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
 
         if (game is not null)
         {
-            await JoinGame(gameId, playerId, cancellationToken);
+            await JoinGame(gameId, request.PlayerId, cancellationToken);
             socketMessage.Message.Game = game;
         }
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
 
-    private async Task JoinGame(long gameId, long playerId, CancellationToken cancellationToken)
+    private async Task JoinGame(long gameId, string playerId, CancellationToken cancellationToken)
     {
         var gamePlayer = GamePlayer.Create(gameId, playerId);
         var gamePlayerWrite = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig()); gamePlayerWrite.AddPutItem(gamePlayer);

@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Amazon.ApiGatewayManagementApi;
+using Amazon.ApiGatewayManagementApi.Model;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.DataModel;
 using Amazon.DynamoDBv2.DocumentModel;
 using Amazon.DynamoDBv2.Model;
 using Amazon.Lambda.APIGatewayEvents;
+using Flyingdarts.Lambdas.Shared;
 using Flyingdarts.Persistence;
 using Flyingdarts.Shared;
 using MediatR.Pipeline;
@@ -18,33 +23,68 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
 {
     public class JoinX01GameCommandNotifyRoomHandler : IRequestPostProcessor<JoinX01GameCommand, APIGatewayProxyResponse>
     {
-        private readonly IAmazonDynamoDB _dbContext;
-        public JoinX01GameCommandNotifyRoomHandler(IAmazonDynamoDB dbContext)
+        private readonly IDynamoDBContext _dbContext;
+        private readonly ApplicationOptions _applicationOptions;
+        private readonly IAmazonApiGatewayManagementApi  _apiGatewayClient;
+        
+        public JoinX01GameCommandNotifyRoomHandler(IDynamoDBContext dbContext, IOptions<ApplicationOptions> applicationOptions, IAmazonApiGatewayManagementApi  apiGatewayClient)
         {
             _dbContext = dbContext;
+            _applicationOptions = applicationOptions.Value;
+            _apiGatewayClient = apiGatewayClient;
         }
-
         public async Task Process(JoinX01GameCommand request, APIGatewayProxyResponse response, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(request.ConnectionId))
-                return;
+            var players = await GetGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
+            var users = await GetUsersWithIds(players.Select(x => x.PlayerId).ToArray());
+            var socketMessage = new SocketMessage<JoinX01GameCommand>();
+            socketMessage.Message = request;
+            socketMessage.Action = "v2/games/x01/join";
+            var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(socketMessage)));
 
-            await CreateSignallingRecord(request.ConnectionId, request.PlayerId.ToString());
+            users.ForEach(async user =>
+            {
+                var postConnectionRequest = new PostToConnectionRequest
+                {
+                    ConnectionId = user.ConnectionId,
+                    Data = stream
+                };
+
+                //context.Logger.LogInformation($"Post to connection {count}: {postConnectionRequest.ConnectionId}");
+                stream.Position = 0;
+
+                await _apiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
+            });
         }
 
-        private async Task CreateSignallingRecord(string connectionId, string userId)
+        private async Task<List<User>> GetUsersWithIds(string[] userIds)
         {
-            var ddbRequest = new PutItemRequest
+            List<User> users = new List<User>();
+            for (var i = 0; i < userIds.Length; i++)
             {
-                TableName = "Flyingdarts-Signalling-Table",
-                Item = new Dictionary<string, AttributeValue>
-                {
-                    { "ConnectionId", new AttributeValue{ S = connectionId }},
-                    { "UserId", new AttributeValue { S = userId }}
-                }
-            };
-
-            await _dbContext.PutItemAsync(ddbRequest);
+                var resultSet = await _dbContext.FromQueryAsync<User>(QueryUserConfig(userIds[i]), _applicationOptions.ToOperationConfig()).GetRemainingAsync();
+                var user = resultSet.Single();
+                users.Add(user);
+            }
+            return users;
+        }
+        private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
+        {
+            var gamePlayers = await _dbContext.FromQueryAsync<GamePlayer>(QueryConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
+                .GetRemainingAsync(cancellationToken);
+            return gamePlayers;
+        }
+        private static QueryOperationConfig QueryConfig(string gameId)
+        {
+            var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.GamePlayer);
+            queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
+            return new QueryOperationConfig { Filter = queryFilter };
+        }
+        private static QueryOperationConfig QueryUserConfig(string userId)
+        {
+            var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.User);
+            queryFilter.AddCondition("SK", QueryOperator.BeginsWith, userId);
+            return new QueryOperationConfig { Filter = queryFilter };
         }
     }
 }
