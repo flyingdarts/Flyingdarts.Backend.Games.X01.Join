@@ -25,14 +25,15 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
     {
         private readonly IDynamoDBContext _dbContext;
         private readonly ApplicationOptions _applicationOptions;
-        private readonly IAmazonApiGatewayManagementApi  _apiGatewayClient;
-        
-        public JoinX01GameCommandNotifyRoomHandler(IDynamoDBContext dbContext, IOptions<ApplicationOptions> applicationOptions, IAmazonApiGatewayManagementApi  apiGatewayClient)
+        private readonly IAmazonApiGatewayManagementApi _apiGatewayClient;
+
+        public JoinX01GameCommandNotifyRoomHandler(IDynamoDBContext dbContext, IOptions<ApplicationOptions> applicationOptions, IAmazonApiGatewayManagementApi apiGatewayClient)
         {
             _dbContext = dbContext;
             _applicationOptions = applicationOptions.Value;
             _apiGatewayClient = apiGatewayClient;
         }
+
         public async Task Process(JoinX01GameCommand request, APIGatewayProxyResponse response, CancellationToken cancellationToken)
         {
             var players = await GetGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
@@ -42,19 +43,21 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
             socketMessage.Action = "v2/games/x01/join";
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(socketMessage)));
 
-            users.ForEach(async user =>
+            foreach (var user in users)
             {
-                var postConnectionRequest = new PostToConnectionRequest
+                if (!string.IsNullOrEmpty(user.ConnectionId))
                 {
-                    ConnectionId = user.ConnectionId,
-                    Data = stream
-                };
+                    var postConnectionRequest = new PostToConnectionRequest
+                    {
+                        ConnectionId = user.ConnectionId,
+                        Data = stream
+                    };
 
-                //context.Logger.LogInformation($"Post to connection {count}: {postConnectionRequest.ConnectionId}");
-                stream.Position = 0;
+                    stream.Position = 0;
 
-                await _apiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
-            });
+                    await _apiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
+                }
+            }
         }
 
         private async Task<List<User>> GetUsersWithIds(string[] userIds)
@@ -68,18 +71,21 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
             }
             return users;
         }
+
         private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
         {
             var gamePlayers = await _dbContext.FromQueryAsync<GamePlayer>(QueryConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
                 .GetRemainingAsync(cancellationToken);
             return gamePlayers;
         }
+
         private static QueryOperationConfig QueryConfig(string gameId)
         {
             var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.GamePlayer);
             queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
             return new QueryOperationConfig { Filter = queryFilter };
         }
+
         private static QueryOperationConfig QueryUserConfig(string userId)
         {
             var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.User);
