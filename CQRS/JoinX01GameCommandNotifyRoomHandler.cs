@@ -53,7 +53,7 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
                 {
                     var connectionId = user.UserId == request.PlayerId 
                         ? request.ConnectionId : user.ConnectionId;
-                        
+
                     var postConnectionRequest = new PostToConnectionRequest
                     {
                         ConnectionId = connectionId,

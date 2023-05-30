@@ -52,8 +52,8 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
                     PlayerName = users.Single(y => y.UserId == x.PlayerId).Profile.UserName
                 };
             }).ToArray();
-            
-            socketMessage.Metadata = new Dictionary<string, string> {
+
+            socketMessage.Message.Metadata = new Dictionary<string, string> {
                 { "CurrentPlayers", JsonSerializer.Serialize(retVal)}
             };
         }
