@@ -17,6 +17,7 @@ var handler = async (APIGatewayProxyRequest request) =>
 {
     // Convert the APIGatewayProxyRequest to the specified JoinX01GameCommand type using the serializer
     var socketRequest = request.To<JoinX01GameCommand>(serializer);
+    
     socketRequest.Message.ConnectionId = request.RequestContext.ConnectionId;
     // Handle the socketRequest using the innerHandler
     return await innerHandler.Handle(socketRequest);
