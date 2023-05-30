@@ -53,8 +53,10 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
                 };
             }).ToArray();
 
-            socketMessage.Message.Metadata = new Dictionary<string, object> {
-                { "CurrentPlayers", retVal}
+            socketMessage.Message.Metadata = new Dictionary<string, object> 
+            {
+                { "CurrentPlayers", retVal },
+                { "FirstToThrow", gamePlayers.OrderBy(x=>x.CreatedAt).First().PlayerId }
             };
         }
 
