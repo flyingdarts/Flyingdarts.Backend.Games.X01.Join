@@ -53,8 +53,8 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
                 };
             }).ToArray();
 
-            socketMessage.Message.Metadata = new Dictionary<string, string> {
-                { "CurrentPlayers", JsonSerializer.Serialize(retVal)}
+            socketMessage.Message.Metadata = new Dictionary<string, object> {
+                { "CurrentPlayers", retVal}
             };
         }
 
