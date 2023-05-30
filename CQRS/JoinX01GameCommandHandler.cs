@@ -38,6 +38,12 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
             await JoinGame(gameId, request.PlayerId, cancellationToken);
             socketMessage.Message.Game = game;
         }
+
+        var gamePlayers = await GetGamePlayersAsync(gameId, cancellationToken);
+        if (gamePlayers is not null) {
+            socketMessage.Metadata.Add("CurrentPlayers", JsonSerializer.Serialize(gamePlayers));
+        }
+        
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
 
@@ -51,14 +57,25 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
 
     private async Task<Game> GetGameAsync(long gameId, CancellationToken cancellationToken)
     {
-        var games = await _dbContext.FromQueryAsync<Game>(X01GamesQueryConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
+        var games = await _dbContext.FromQueryAsync<Game>(QueryGamesConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
             .GetRemainingAsync(cancellationToken);
         return games.Where(x => x.Status == GameStatus.Qualifying).ToList().Single();
     }
-
-    private static QueryOperationConfig X01GamesQueryConfig(string gameId)
+    private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
+    {
+        var gamePlayers = await _dbContext.FromQueryAsync<GamePlayer>(QueryPlayersConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
+            .GetRemainingAsync(cancellationToken);
+        return gamePlayers;
+    }
+    private static QueryOperationConfig QueryGamesConfig(string gameId)
     {
         var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.Game);
+        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
+        return new QueryOperationConfig { Filter = queryFilter };
+    }
+    private static QueryOperationConfig QueryPlayersConfig(string gameId)
+    {
+        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.GamePlayer);
         queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
         return new QueryOperationConfig { Filter = queryFilter };
     }
