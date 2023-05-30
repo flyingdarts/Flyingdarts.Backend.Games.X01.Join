@@ -40,10 +40,21 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         }
 
         var gamePlayers = await GetGamePlayersAsync(gameId, cancellationToken);
+
         if (gamePlayers is not null)
         {
+            var users = await GetUsersAsync(gamePlayers.Select(x => x.PlayerId).ToArray());
+            var retVal = gamePlayers.Select(x =>
+            {
+                return new JoinX01GameCommand
+                {
+                    PlayerId = x.PlayerId,
+                    PlayerName = users.Single(y => y.UserId == x.PlayerId).Profile.UserName
+                };
+            }).ToArray();
+            
             socketMessage.Metadata = new Dictionary<string, string> {
-                { "CurrentPlayers", JsonSerializer.Serialize(gamePlayers)}
+                { "CurrentPlayers", JsonSerializer.Serialize(retVal)}
             };
         }
 
@@ -69,6 +80,24 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         var gamePlayers = await _dbContext.FromQueryAsync<GamePlayer>(QueryPlayersConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
             .GetRemainingAsync(cancellationToken);
         return gamePlayers;
+    }
+
+    private async Task<List<User>> GetUsersAsync(string[] userIds)
+    {
+        List<User> users = new List<User>();
+        for (var i = 0; i < userIds.Length; i++)
+        {
+            var resultSet = await _dbContext.FromQueryAsync<User>(QueryUserConfig(userIds[i]), _applicationOptions.ToOperationConfig()).GetRemainingAsync();
+            var user = resultSet.Single();
+            users.Add(user);
+        }
+        return users;
+    }
+    private static QueryOperationConfig QueryUserConfig(string userId)
+    {
+        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.User);
+        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, userId);
+        return new QueryOperationConfig { Filter = queryFilter };
     }
     private static QueryOperationConfig QueryGamesConfig(string gameId)
     {
