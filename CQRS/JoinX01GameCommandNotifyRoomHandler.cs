@@ -38,18 +38,25 @@ namespace Flyingdarts.Backend.Games.X01.Join.CQRS
         {
             var players = await GetGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
             var users = await GetUsersWithIds(players.Select(x => x.PlayerId).ToArray());
-            var socketMessage = new SocketMessage<JoinX01GameCommand>();
-            socketMessage.Message = request;
-            socketMessage.Action = "v2/games/x01/join";
+        
+            var socketMessage = new SocketMessage<JoinX01GameCommand> 
+            { 
+                Message = request,
+                Action = "v2/games/x01/join"
+            };
+
             var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(socketMessage)));
 
             foreach (var user in users)
             {
                 if (!string.IsNullOrEmpty(user.ConnectionId))
                 {
+                    var connectionId = user.UserId == request.PlayerId 
+                        ? request.ConnectionId : user.ConnectionId;
+                        
                     var postConnectionRequest = new PostToConnectionRequest
                     {
-                        ConnectionId = user.ConnectionId,
+                        ConnectionId = connectionId,
                         Data = stream
                     };
 
