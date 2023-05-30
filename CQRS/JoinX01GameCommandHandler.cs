@@ -40,10 +40,13 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         }
 
         var gamePlayers = await GetGamePlayersAsync(gameId, cancellationToken);
-        if (gamePlayers is not null) {
-            socketMessage.Metadata.Add("CurrentPlayers", JsonSerializer.Serialize(gamePlayers));
+        if (gamePlayers is not null)
+        {
+            socketMessage.Metadata = new Dictionary<string, string> {
+                { "CurrentPlayers", JsonSerializer.Serialize(gamePlayers)}
+            };
         }
-        
+
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
 
