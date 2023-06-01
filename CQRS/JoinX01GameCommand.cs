@@ -18,6 +18,5 @@ public class JoinX01GameCommand : IRequest<APIGatewayProxyResponse>
 
 public class ScoreboardRecord
 {
-    public int Score { get; set; }
     public List<int> History { get; set; }
 }
