@@ -22,7 +22,7 @@ public record JoinX01GameCommandDataFetcher(IDynamoDBContext DbContext, IOptions
     {
         var games = await DbContext.FromQueryAsync<Game>(QueryGameConfig(gameId.ToString()), ApplicationOptions.Value.ToOperationConfig())
             .GetRemainingAsync(cancellationToken);
-        return games.Where(x => x.Status == GameStatus.Qualifying).ToList().Single();
+        return games.Single();
     }
 
     private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
