@@ -81,7 +81,7 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
     {
         var games = await _dbContext.FromQueryAsync<Game>(QueryGamesConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
             .GetRemainingAsync(cancellationToken);
-        return games.Where(x => x.Status == GameStatus.Qualifying).ToList().Single();
+        return games.Single();
     }
     private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
     {
