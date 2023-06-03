@@ -38,6 +38,8 @@ public static class ServiceFactory
         // Register validators from the assembly containing the JoinX01GameCommandValidator.
         services.AddValidatorsFromAssemblyContaining<JoinX01GameCommandValidator>();
 
+        // Register GameService with Reads and Writes.
+        services.AddTransient<IDynamoDbService, DynamoDbService>();  
         // Register MediatR and register services from the assembly containing JoinX01GameCommand.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(JoinX01GameCommand).Assembly));
 
@@ -51,6 +53,7 @@ public static class ServiceFactory
 
             return new AmazonApiGatewayManagementApiClient(config);
         });
+
         // Build and return the service provider.
         return services.BuildServiceProvider();
     }

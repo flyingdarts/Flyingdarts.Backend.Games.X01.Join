@@ -4,24 +4,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Flyingdarts.Persistence;
 using MediatR;
-using Amazon.DynamoDBv2.DataModel;
 using Flyingdarts.Lambdas.Shared;
-using Flyingdarts.Shared;
-using Microsoft.Extensions.Options;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using Amazon.DynamoDBv2.DocumentModel;
 
-public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
+public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
 {
-    private readonly IDynamoDBContext _dbContext;
-    private readonly ApplicationOptions _applicationOptions;
-    public JoinX01GameCommandHandler(IDynamoDBContext dbContext, IOptions<ApplicationOptions> applicationOptions)
-    {
-        _dbContext = dbContext;
-        _applicationOptions = applicationOptions.Value;
-    }
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
         request.History = new();
@@ -40,10 +28,8 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
         if (request.Game is not null)
         {
             var player = GamePlayer.Create(long.Parse(request.GameId), request.PlayerId);
-            var write = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig());
 
-            write.AddPutItem(player);
-            await write.ExecuteAsync(cancellationToken);
+            await DynamoDbService.WriteGamePlayerAsync(player, cancellationToken);
 
             socketMessage.Message.Game = request.Game;
         }
