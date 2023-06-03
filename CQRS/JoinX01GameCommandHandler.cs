@@ -24,99 +24,47 @@ public class JoinX01GameCommandHandler : IRequestHandler<JoinX01GameCommand, API
     }
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
-        var gameId = long.Parse(request.GameId);
-
         request.History = new();
         request.Players.ForEach(p =>
         {
             request.History.Add(p.PlayerId, new());
             request.History[p.PlayerId].History = request.Darts.OrderBy(x => x.CreatedAt).Where(x => x.PlayerId == p.PlayerId).Select(x => x.Score).ToList();
         });
+
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
             Action = "v2/games/x01/join",
             Message = request
         };
-        var game = await GetGameAsync(gameId, cancellationToken);
 
-        if (game is not null)
+        if (request.Game is not null)
         {
-            await JoinGame(gameId, request.PlayerId, cancellationToken);
-            socketMessage.Message.Game = game;
+            var player = GamePlayer.Create(long.Parse(request.GameId), request.PlayerId);
+            var write = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig());
+
+            write.AddPutItem(player);
+            await write.ExecuteAsync(cancellationToken);
+
+            socketMessage.Message.Game = request.Game;
         }
 
-        var gamePlayers = await GetGamePlayersAsync(gameId, cancellationToken);
-
-        if (gamePlayers is not null)
+        if (request.Players is not null)
         {
-            var users = await GetUsersAsync(gamePlayers.Select(x => x.PlayerId).ToArray());
-            var retVal = gamePlayers.Select(x =>
+            var retVal = request.Players.Select(x =>
             {
                 return new JoinX01GameCommand
                 {
                     PlayerId = x.PlayerId,
-                    PlayerName = users.Single(y => y.UserId == x.PlayerId).Profile.UserName
+                    PlayerName = request.Users.Single(y => y.UserId == x.PlayerId).Profile.UserName
                 };
             }).ToArray();
 
-            socketMessage.Message.Metadata = new Dictionary<string, object> 
+            socketMessage.Message.Metadata = new Dictionary<string, object>
             {
-                { "CurrentPlayers", retVal },
-                { "FirstToThrow", gamePlayers.OrderBy(x=>x.CreatedAt).First().PlayerId }
+                { "CurrentPlayers", retVal }
             };
         }
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
-    }
-
-    private async Task JoinGame(long gameId, string playerId, CancellationToken cancellationToken)
-    {
-        var gamePlayer = GamePlayer.Create(gameId, playerId);
-        var gamePlayerWrite = _dbContext.CreateBatchWrite<GamePlayer>(_applicationOptions.ToOperationConfig()); gamePlayerWrite.AddPutItem(gamePlayer);
-
-        await gamePlayerWrite.ExecuteAsync(cancellationToken);
-    }
-
-    private async Task<Game> GetGameAsync(long gameId, CancellationToken cancellationToken)
-    {
-        var games = await _dbContext.FromQueryAsync<Game>(QueryGamesConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
-            .GetRemainingAsync(cancellationToken);
-        return games.Single();
-    }
-    private async Task<List<GamePlayer>> GetGamePlayersAsync(long gameId, CancellationToken cancellationToken)
-    {
-        var gamePlayers = await _dbContext.FromQueryAsync<GamePlayer>(QueryPlayersConfig(gameId.ToString()), _applicationOptions.ToOperationConfig())
-            .GetRemainingAsync(cancellationToken);
-        return gamePlayers;
-    }
-
-    private async Task<List<User>> GetUsersAsync(string[] userIds)
-    {
-        List<User> users = new List<User>();
-        for (var i = 0; i < userIds.Length; i++)
-        {
-            var resultSet = await _dbContext.FromQueryAsync<User>(QueryUserConfig(userIds[i]), _applicationOptions.ToOperationConfig()).GetRemainingAsync();
-            var user = resultSet.Single();
-            users.Add(user);
-        }
-        return users;
-    }
-    private static QueryOperationConfig QueryUserConfig(string userId)
-    {
-        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.User);
-        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, userId);
-        return new QueryOperationConfig { Filter = queryFilter };
-    }
-    private static QueryOperationConfig QueryGamesConfig(string gameId)
-    {
-        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.Game);
-        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
-        return new QueryOperationConfig { Filter = queryFilter };
-    }
-    private static QueryOperationConfig QueryPlayersConfig(string gameId)
-    {
-        var queryFilter = new QueryFilter("PK", QueryOperator.Equal, Constants.GamePlayer);
-        queryFilter.AddCondition("SK", QueryOperator.BeginsWith, gameId);
-        return new QueryOperationConfig { Filter = queryFilter };
     }
 }
