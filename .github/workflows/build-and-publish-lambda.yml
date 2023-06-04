@@ -14,6 +14,10 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '6.0.x'
+      - name: Get repo name
+        run: |
+          REPO_NAME=$GITHUB_REPOSITORY
+          echo "REPO_NAME_WITHOUT_DASHES=$(echo $REPO_NAME | sed 's/flyingdarts\///')" >> $GITHUB_ENV  
       - name: Build with dotnet
         run: dotnet build --configuration Release ${{ env.REPO_NAME_WITHOUT_DASHES }}.Tests
       - name: Test with dotnet
