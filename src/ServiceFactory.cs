@@ -28,18 +28,17 @@ public static class ServiceFactory
         // Configure AWS services.
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
         services.AddAWSService<IAmazonDynamoDB>(configuration.GetAWSOptions("DynamoDb"));
+        services.AddTransient<IDynamoDBContext, DynamoDBContext>();
 
         // Register application options.
         services.AddOptions<ApplicationOptions>();
 
-        // Register the DynamoDB context.
-        services.AddTransient<IDynamoDBContext, DynamoDBContext>();
+        // Register GameService with Reads and Writes.
+        services.AddTransient<IDynamoDbService, DynamoDbService>();  
 
         // Register validators from the assembly containing the JoinX01GameCommandValidator.
         services.AddValidatorsFromAssemblyContaining<JoinX01GameCommandValidator>();
 
-        // Register GameService with Reads and Writes.
-        services.AddTransient<IDynamoDbService, DynamoDbService>();  
         // Register MediatR and register services from the assembly containing JoinX01GameCommand.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(JoinX01GameCommand).Assembly));
 

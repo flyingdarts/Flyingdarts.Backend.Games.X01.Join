@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyingdarts.Backend.Games.X01.Join", "Flyingdarts.Backend.Games.X01.Join.csproj", "{953B0CBF-ABE7-4DD7-8110-620785209A2E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyingdarts.Backend.Games.X01.Join", "src\Flyingdarts.Backend.Games.X01.Join.csproj", "{953B0CBF-ABE7-4DD7-8110-620785209A2E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Flyingdarts.Backend.Games.X01.Join.Tests", "Flyingdarts.Backend.Games.X01.Join.Tests\Flyingdarts.Backend.Games.X01.Join.Tests.csproj", "{20464890-14D8-4D22-AC6D-FCA49613D046}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +20,9 @@ Global
 		{953B0CBF-ABE7-4DD7-8110-620785209A2E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{953B0CBF-ABE7-4DD7-8110-620785209A2E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{953B0CBF-ABE7-4DD7-8110-620785209A2E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{20464890-14D8-4D22-AC6D-FCA49613D046}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{20464890-14D8-4D22-AC6D-FCA49613D046}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{20464890-14D8-4D22-AC6D-FCA49613D046}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{20464890-14D8-4D22-AC6D-FCA49613D046}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

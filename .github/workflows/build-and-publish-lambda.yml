@@ -3,13 +3,10 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+  
 jobs:
-  DeployFunction:
+  RunTests:
     runs-on: ubuntu-22.04
-    if: "!contains(github.event.head_commit.message, 'NORUN')" # Skip the build by adding NORUN in all caps to your commit message
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -18,7 +15,28 @@ jobs:
         with:
           dotnet-version: '6.0.x'
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build --configuration Release ${{ env.REPO_NAME_WITHOUT_DASHES }}.Tests
+      - name: Test with dotnet
+        run: dotnet test --configuration Release --logger "console;verbosity=detailed" --collect "Code coverage"
+
+  DeployFunction:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.head_commit.message, 'NORUN')" # Skip the build by adding NORUN in all caps to your commit message
+    permissions:
+      id-token: write
+      contents: read
+    needs: RunTests
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build with dotnet
+        run: dotnet build --configuration Release src/
+      - name: Publish with dotnet
+        run: dotnet publish --configuration Release --output publish/ src/
       - name: Install Amazon.Lambda.Tools
         run: |
           dotnet tool install -g Amazon.Lambda.Tools
@@ -46,4 +64,4 @@ jobs:
           embed-description: ${{ github.event.head_commit.message }}
           embed-footer-text: ${{ github.ref_name }}
           embed-timestamp: ${{ github.event.head_commit.timestamp }}
-          embed-author-name: ${{ github.event.head_commit.author.name }}   
+          embed-author-name: ${{ github.event.head_commit.author.name }}
