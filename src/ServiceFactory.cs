@@ -28,10 +28,11 @@ public static class ServiceFactory
         // Configure AWS services.
         services.AddDefaultAWSOptions(configuration.GetAWSOptions());
         services.AddAWSService<IAmazonDynamoDB>(configuration.GetAWSOptions("DynamoDb"));
-        services.AddTransient<IDynamoDBContext, DynamoDBContext>();
 
         // Register application options.
         services.AddOptions<ApplicationOptions>();
+
+        services.AddTransient<IDynamoDBContext, DynamoDBContext>();
 
         // Register GameService with Reads and Writes.
         services.AddTransient<IDynamoDbService, DynamoDbService>();  

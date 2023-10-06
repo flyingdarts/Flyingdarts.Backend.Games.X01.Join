@@ -7,6 +7,7 @@ using MediatR;
 using Flyingdarts.Lambdas.Shared;
 using System.Collections.Generic;
 using System.Linq;
+using System;
 
 public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
 {
@@ -24,6 +25,19 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
             Action = "v2/games/x01/join",
             Message = request
         };
+
+        if (request.Game == null)
+        {
+            throw new Exception($"Game is null ${request.GameId}");
+        }
+        if (request.Players == null)
+        {
+            throw new Exception($"Game players is null ${request.GameId}");
+        }
+        if (request.Users == null)
+        {
+            throw new Exception($"Users is null ${request.GameId}");
+        }
 
         if (request.Game is not null)
         {
