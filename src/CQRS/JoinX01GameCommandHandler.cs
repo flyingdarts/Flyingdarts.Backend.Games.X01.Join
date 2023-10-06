@@ -26,18 +26,25 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
             Message = request
         };
 
+        request.Game = await DynamoDbService.ReadGameAsync(long.Parse(request.GameId), cancellationToken);
         if (request.Game == null)
         {
             throw new Exception($"Game is null ${request.GameId}");
         }
+
+        request.Players = await DynamoDbService.ReadGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
         if (request.Players == null)
         {
             throw new Exception($"Game players is null ${request.GameId}");
         }
+
+        request.Users = await DynamoDbService.ReadUsersAsync(request.Players.Select(x => x.PlayerId).ToArray(), cancellationToken);
         if (request.Users == null)
         {
             throw new Exception($"Users is null ${request.GameId}");
         }
+
+        request.Darts = await DynamoDbService.ReadGameDartsAsync(long.Parse(request.GameId), cancellationToken);
 
         if (request.Game is not null)
         {
