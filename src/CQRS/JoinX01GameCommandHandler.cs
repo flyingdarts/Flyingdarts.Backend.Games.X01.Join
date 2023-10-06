@@ -32,7 +32,21 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
 
             await DynamoDbService.WriteGamePlayerAsync(player, cancellationToken);
 
-           data.Game = request.Game;
+            data.Game = new GameDto
+            {
+                Id = request.Game.GameId.ToString(),
+                PlayerCount = request.Game.PlayerCount,
+                Status = (GameStatusDto)(int)request.Game.Status,
+                Type = (GameTypeDto)(int)request.Game.Type,
+                X01 = new X01GameSettingsDto
+                {
+                    DoubleIn = request.Game.X01.DoubleIn,
+                    DoubleOut = request.Game.X01.DoubleOut,
+                    Legs = request.Game.X01.Legs,
+                    Sets = request.Game.X01.Sets,
+                    StartingScore = request.Game.X01.StartingScore
+                }
+            };
         }
 
         if (request.Players is not null)
@@ -44,7 +58,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
                     PlayerId = x.PlayerId,
                     PlayerName = request.Users.Single(y => y.UserId == x.PlayerId).Profile.UserName
                 };
-            }).OrderBy(x=>x.CreatedAt);
+            }).OrderBy(x => x.CreatedAt);
 
             data.Players = orderedPlayers;
         }
@@ -55,7 +69,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
             request.Players.ForEach(p =>
             {
                 data.Darts.Add(p.PlayerId, new());
-                data.Darts[p.PlayerId].History = request.Darts.OrderBy(x => x.CreatedAt).Where(x => x.PlayerId == p.PlayerId).Select(x => x.Score).ToList();
+                data.Darts[p.PlayerId] = request.Darts.OrderBy(x => x.CreatedAt).Where(x => x.PlayerId == p.PlayerId).Select(x => new DartDto {Id =x.Id, Score = x.Score, GameScore = x.GameScore}).ToList();
             });
         }
 
@@ -63,31 +77,4 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
-}
-
-
-class Metadata
-{
-    public Game Game { get; set; }
-    public IOrderedEnumerable<PlayerDto> Players { get; set; }
-    public Dictionary<string, ScoreboardRecord> Darts { get; set; }
-
-    public Dictionary<string, object> toDictionary()
-    {
-        var result = new Dictionary<string, object>
-        {
-            { "Game", Game },
-            { "Players", Players },
-            { "Darts", Darts }
-        };
-
-        return result;
-    }
-}
-
-class PlayerDto
-{
-    public String PlayerId { get; set; }
-    public String PlayerName { get; set; }
-    public DateTime CreatedAt { get; set; }
 }
