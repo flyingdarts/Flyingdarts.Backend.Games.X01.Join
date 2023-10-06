@@ -5,6 +5,7 @@ using FluentValidation;
 using Flyingdarts.Shared;
 using Microsoft.Extensions.Configuration;
 using Amazon.ApiGatewayManagementApi;
+using Flyingdarts.Persistence;
 
 /// <summary>
 /// Factory class for creating the service provider.
