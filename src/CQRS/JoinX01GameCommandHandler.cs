@@ -12,12 +12,12 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
 {
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
-        request.History = new();
-        request.Players.ForEach(p =>
-        {
-            request.History.Add(p.PlayerId, new());
-            request.History[p.PlayerId].History = request.Darts.OrderBy(x => x.CreatedAt).Where(x => x.PlayerId == p.PlayerId).Select(x => x.Score).ToList();
-        });
+        //request.History = new();
+        //request.Players.ForEach(p =>
+        //{
+        //    request.History.Add(p.PlayerId, new());
+        //    request.History[p.PlayerId].History = request.Darts.OrderBy(x => x.CreatedAt).Where(x => x.PlayerId == p.PlayerId).Select(x => x.Score).ToList();
+        //});
 
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
