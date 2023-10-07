@@ -85,25 +85,10 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
         Dictionary<string, List<DartDto>> darts = metadata.Darts;
 
         // Create a dictionary to keep track of the number of darts thrown by each player.
-        Dictionary<string, int> dartsThrownByPlayer = new Dictionary<string, int>();
-
-        // Initialize the dartsThrownByPlayer dictionary with 0 darts for each player.
-        foreach (var player in metadata.Players)
-        {
-            dartsThrownByPlayer[player.PlayerId] = 0;
-        }
-
-        // Calculate the total number of darts thrown by each player.
-        foreach (var playerDarts in darts.Values)
-        {
-            foreach (var dart in playerDarts)
-            {
-                if (dartsThrownByPlayer.ContainsKey(dart.PlayerId))
-                {
-                    dartsThrownByPlayer[dart.PlayerId]++;
-                }
-            }
-        }
+        Dictionary<string, int> dartsThrownByPlayer = darts
+            .SelectMany(kv => kv.Value, (key, value) => new { Player = key.Key, Dart = value })
+            .GroupBy(x => x.Player)
+            .ToDictionary(g => g.Key, g => g.Count());
 
         // Find the player with the lowest number of darts thrown.
         string nextPlayer = dartsThrownByPlayer.OrderBy(x => x.Value).FirstOrDefault().Key;
