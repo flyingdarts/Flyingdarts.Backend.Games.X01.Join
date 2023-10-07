@@ -82,18 +82,17 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
     }
     public void DetermineNextPlayer(Metadata metadata)
     {
-        Dictionary<string, List<DartDto>> darts = metadata.Darts;
-
-        // Create a dictionary to keep track of the number of darts thrown by each player.
-        Dictionary<string, int> dartsThrownByPlayer = darts
-            .SelectMany(kv => kv.Value, (key, value) => new { Player = key.Key, Dart = value })
-            .GroupBy(x => x.Player)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-        // Find the player with the lowest number of darts thrown.
-        string nextPlayer = dartsThrownByPlayer.OrderBy(x => x.Value).FirstOrDefault().Key;
-
-        // Set the NextPlayer property in the Metadata class to the player with the lowest darts thrown.
-        metadata.NextPlayer = nextPlayer;
+        if (metadata.Players.Count() == 2)
+        {
+            var p1_count = metadata.Darts[metadata.Players.First().PlayerId].Count();
+            var p2_count = metadata.Darts[metadata.Players.Last().PlayerId].Count();
+            if (p1_count > p2_count)
+            {
+                metadata.NextPlayer = metadata.Players.Last().PlayerId;
+            } else
+            {
+                metadata.NextPlayer = metadata.Players.Last().PlayerId;
+            }
+        }
     }
 }
