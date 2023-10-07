@@ -22,8 +22,10 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
             Message = request
         };
 
+        await UpdateConnectionId(socketMessage, cancellationToken);
+
         request.Game = await DynamoDbService.ReadGameAsync(long.Parse(request.GameId), cancellationToken);
-       
+
         if (request.Game is not null)
         {
             var player = GamePlayer.Create(long.Parse(request.GameId), request.PlayerId);
@@ -42,6 +44,14 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         await NotifyRoomAsync(socketMessage, cancellationToken);
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
+    }
+    public async Task UpdateConnectionId(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    {
+        var user = await DynamoDbService.ReadUserAsync(message.Message.PlayerId, cancellationToken);
+
+        user.ConnectionId = message.Message.ConnectionId;
+
+        await DynamoDbService.WriteUserAsync(user, cancellationToken);
     }
     public static Dictionary<string, object> CreateMetaData(Game game, List<GameDart> darts, List<GamePlayer> players, List<User> users)
     {
