@@ -7,9 +7,12 @@ using MediatR;
 using Flyingdarts.Lambdas.Shared;
 using System.Collections.Generic;
 using System.Linq;
-using System;
+using Amazon.ApiGatewayManagementApi.Model;
+using System.IO;
+using System.Text;
+using Amazon.ApiGatewayManagementApi;
 
-public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
+public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazonApiGatewayManagementApi ApiGatewayClient) : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
 {
     public async Task<APIGatewayProxyResponse> Handle(JoinX01GameCommand request, CancellationToken cancellationToken)
     {
@@ -20,19 +23,23 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
         };
 
         request.Game = await DynamoDbService.ReadGameAsync(long.Parse(request.GameId), cancellationToken);
-        request.Players = await DynamoDbService.ReadGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
-        request.Users = await DynamoDbService.ReadUsersAsync(request.Players.Select(x => x.PlayerId).ToArray(), cancellationToken);
-        request.Darts = await DynamoDbService.ReadGameDartsAsync(long.Parse(request.GameId), cancellationToken);
-
-
+       
         if (request.Game is not null)
         {
             var player = GamePlayer.Create(long.Parse(request.GameId), request.PlayerId);
 
             await DynamoDbService.WriteGamePlayerAsync(player, cancellationToken);
         }
-        
+
+        request.Players = await DynamoDbService.ReadGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
+        request.Users = await DynamoDbService.ReadUsersAsync(request.Players.Select(x => x.PlayerId).ToArray(), cancellationToken);
+        request.Darts = await DynamoDbService.ReadGameDartsAsync(long.Parse(request.GameId), cancellationToken);
+
+        await UpdateGameStatus(socketMessage, cancellationToken);
+
         socketMessage.Metadata = CreateMetaData(request.Game, request.Darts, request.Players, request.Users);
+
+        await NotifyRoomAsync(socketMessage, cancellationToken);
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
     }
@@ -98,6 +105,38 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
 
         return data.toDictionary();
     }
+    public async Task NotifyRoomAsync(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message)));
+
+        foreach (var user in message.Message.Users)
+        {
+            if (!string.IsNullOrEmpty(user.ConnectionId))
+            {
+                var connectionId = user.UserId == message.Message.PlayerId
+                    ? message.Message.ConnectionId : user.ConnectionId;
+
+                var postConnectionRequest = new PostToConnectionRequest
+                {
+                    ConnectionId = connectionId,
+                    Data = stream
+                };
+
+                stream.Position = 0;
+
+                await ApiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
+            }
+        }
+    }
+    public async Task UpdateGameStatus(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    {
+        if (message.Message.Players.Count() == 2)
+        {
+            message.Message.Game.Status = GameStatus.Started;
+        }
+
+        await DynamoDbService.WriteGameAsync(message.Message.Game, cancellationToken);
+    }
     public static void DetermineNextPlayer(Metadata metadata)
     {
         if (metadata.Players.Count() == 2)
@@ -110,7 +149,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
             }
             else
             {
-                metadata.NextPlayer = metadata.Players.Last().PlayerId;
+                metadata.NextPlayer = metadata.Players.First().PlayerId;
             }
         }
     }
