@@ -14,18 +14,17 @@ public record JoinX01GameCommandNotifyRoomHandler(IDynamoDbService DynamoDbServi
 {
     public async Task Process(JoinX01GameCommand request, APIGatewayProxyResponse response, CancellationToken cancellationToken)
     {
-        var players = await DynamoDbService.ReadGamePlayersAsync(long.Parse(request.GameId), cancellationToken);
-        var users = await DynamoDbService.ReadUsersAsync(players.Select(x => x.PlayerId).ToArray(), cancellationToken);
-
         var socketMessage = new SocketMessage<JoinX01GameCommand>
         {
             Message = request,
             Action = "v2/games/x01/join"
         };
 
+        socketMessage.Metadata = JoinX01GameCommandHandler.CreateMetaData(request.Game, request.Darts, request.Players, request.Users);
+
         var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(socketMessage)));
 
-        foreach (var user in users)
+        foreach (var user in request.Users)
         {
             if (!string.IsNullOrEmpty(user.ConnectionId))
             {
