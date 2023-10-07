@@ -58,7 +58,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
                     PlayerId = x.PlayerId,
                     PlayerName = request.Users.Single(y => y.UserId == x.PlayerId).Profile.UserName,
                     Country = request.Users.Single(y => y.UserId == x.PlayerId).Profile.Country.ToLower(),
-                    CreatedAt = long.Parse(x.PlayerId)
+                    CreatedAt = x.PlayerId
                 };
             }).OrderBy(x => x.CreatedAt);
 
@@ -94,6 +94,6 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
         string nextPlayer = dartsThrownByPlayer.OrderBy(x => x.Value).FirstOrDefault().Key;
 
         // Set the NextPlayer property in the Metadata class to the player with the lowest darts thrown.
-        metadata.NextPlayer = long.Parse(nextPlayer); // Assuming NextPlayer is of type long
+        metadata.NextPlayer = nextPlayer;
     }
 }
