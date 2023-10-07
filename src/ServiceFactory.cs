@@ -36,10 +36,10 @@ public static class ServiceFactory
         services.AddTransient<IDynamoDBContext, DynamoDBContext>();
 
         // Register GameService with Reads and Writes.
-        services.AddTransient<IDynamoDbService, DynamoDbService>();
+        services.AddTransient<IDynamoDbService, DynamoDbService>();  
 
-        // Register validators from the assembly containing the JoinX01GameCommandHandler.
-        services.AddValidatorsFromAssemblyContaining<JoinX01GameCommandHandler>();
+        // Register validators from the assembly containing the JoinX01GameCommandValidator.
+        services.AddValidatorsFromAssemblyContaining<JoinX01GameCommandValidator>();
 
         // Register MediatR and register services from the assembly containing JoinX01GameCommand.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(JoinX01GameCommand).Assembly));
