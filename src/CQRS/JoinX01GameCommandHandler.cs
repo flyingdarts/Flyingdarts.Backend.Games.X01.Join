@@ -75,8 +75,40 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService) : IReq
             });
         }
 
-        socketMessage.Metadata = data.toDictionary();
+        DetermineNextPlayer(data);
+        socketMessage.Metadata = data.toDictionary();        
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
+    }
+    public void DetermineNextPlayer(Metadata metadata)
+    {
+        Dictionary<string, List<DartDto>> darts = metadata.Darts;
+
+        // Create a dictionary to keep track of the number of darts thrown by each player.
+        Dictionary<string, int> dartsThrownByPlayer = new Dictionary<string, int>();
+
+        // Initialize the dartsThrownByPlayer dictionary with 0 darts for each player.
+        foreach (var player in metadata.Players)
+        {
+            dartsThrownByPlayer[player.PlayerId] = 0;
+        }
+
+        // Calculate the total number of darts thrown by each player.
+        foreach (var playerDarts in darts.Values)
+        {
+            foreach (var dart in playerDarts)
+            {
+                if (dartsThrownByPlayer.ContainsKey(dart.PlayerId))
+                {
+                    dartsThrownByPlayer[dart.PlayerId]++;
+                }
+            }
+        }
+
+        // Find the player with the lowest number of darts thrown.
+        string nextPlayer = dartsThrownByPlayer.OrderBy(x => x.Value).FirstOrDefault().Key;
+
+        // Set the NextPlayer property in the Metadata class to the player with the lowest darts thrown.
+        metadata.NextPlayer = long.Parse(nextPlayer); // Assuming NextPlayer is of type long
     }
 }
