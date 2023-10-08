@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System;
+using System.Text.Json;
 using Amazon.Lambda.APIGatewayEvents;
 using System.Threading;
 using System.Threading.Tasks;
@@ -149,6 +150,16 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         }
 
         DetermineNextPlayer(data);
+
+        try
+        {
+            var lastFinisher = darts!.OrderBy(x => x.CreatedAt).Last(x => x.GameScore == 0);
+            data.Darts[data.Darts.Keys.First()] =
+                data.Darts[data.Darts.Keys.First()].Where(x => x.CreatedAt > lastFinisher.CreatedAt.Ticks).ToList();
+
+            data.Darts[data.Darts.Keys.Last()] =
+                data.Darts[data.Darts.Keys.Last()].Where(x => x.CreatedAt > lastFinisher.CreatedAt.Ticks).ToList();
+        } catch { }
 
         return data.toDictionary();
     }
