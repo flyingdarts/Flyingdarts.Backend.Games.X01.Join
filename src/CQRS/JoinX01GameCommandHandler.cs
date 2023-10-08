@@ -53,6 +53,38 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
 
         await DynamoDbService.WriteUserAsync(user, cancellationToken);
     }
+    public async Task NotifyRoomAsync(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    {
+        var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message)));
+
+        foreach (var user in message.Message.Users)
+        {
+            if (!string.IsNullOrEmpty(user.ConnectionId))
+            {
+                var connectionId = user.UserId == message.Message.PlayerId
+                    ? message.Message.ConnectionId : user.ConnectionId;
+
+                var postConnectionRequest = new PostToConnectionRequest
+                {
+                    ConnectionId = connectionId,
+                    Data = stream
+                };
+
+                stream.Position = 0;
+
+                await ApiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
+            }
+        }
+    }
+    public async Task UpdateGameStatus(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    {
+        if (message.Message.Players.Count() == 2)
+        {
+            message.Message.Game.Status = GameStatus.Started;
+        }
+
+        await DynamoDbService.WriteGameAsync(message.Message.Game, cancellationToken);
+    }
     public static Dictionary<string, object> CreateMetaData(Game game, List<GameDart> darts, List<GamePlayer> players, List<User> users)
     {
         Metadata data = new Metadata();
@@ -89,7 +121,10 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
                     {
                         Id = x.Id,
                         Score = x.Score,
-                        GameScore = x.GameScore
+                        GameScore = x.GameScore,
+                        Set = x.Set,
+                        Leg = x.Leg,
+                        CreatedAt = x.CreatedAt.Ticks
                     })
                     .ToList();
             });
@@ -104,7 +139,9 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
                     PlayerId = x.PlayerId,
                     PlayerName = users.Single(y => y.UserId == x.PlayerId).Profile.UserName,
                     Country = users.Single(y => y.UserId == x.PlayerId).Profile.Country.ToLower(),
-                    CreatedAt = x.PlayerId
+                    CreatedAt = x.PlayerId,
+                    Legs = CalculateLegs(data, x.PlayerId),
+                    Sets = CalculateSets(data, x.PlayerId)
                 };
             }).OrderBy(x => x.CreatedAt);
 
@@ -115,37 +152,24 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
 
         return data.toDictionary();
     }
-    public async Task NotifyRoomAsync(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
+    public static string CalculateLegs(Metadata metadata, string playerId)
     {
-        var stream = new MemoryStream(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message)));
-
-        foreach (var user in message.Message.Users)
+        var dart = metadata.Darts[playerId].OrderBy(x => x.CreatedAt).Last();
+        if (dart.GameScore == 0)
         {
-            if (!string.IsNullOrEmpty(user.ConnectionId))
+            if (dart.Leg + 1 >= metadata.Game.X01.Legs)
             {
-                var connectionId = user.UserId == message.Message.PlayerId
-                    ? message.Message.ConnectionId : user.ConnectionId;
-
-                var postConnectionRequest = new PostToConnectionRequest
-                {
-                    ConnectionId = connectionId,
-                    Data = stream
-                };
-
-                stream.Position = 0;
-
-                await ApiGatewayClient.PostToConnectionAsync(postConnectionRequest, cancellationToken);
+                return (0).ToString();
             }
-        }
-    }
-    public async Task UpdateGameStatus(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
-    {
-        if (message.Message.Players.Count() == 2)
-        {
-            message.Message.Game.Status = GameStatus.Started;
+            return (dart.Leg + 1).ToString();
         }
 
-        await DynamoDbService.WriteGameAsync(message.Message.Game, cancellationToken);
+        return (dart.Leg).ToString();
+    }
+    public static string CalculateSets(Metadata metadata, string playerId)
+    {
+        var darts = metadata.Darts[playerId].OrderBy(x => x.CreatedAt).Where(x => x.GameScore == 0);
+        return (darts.Count() / metadata.Game.X01.Legs).ToString();
     }
     public static void DetermineNextPlayer(Metadata metadata)
     {
