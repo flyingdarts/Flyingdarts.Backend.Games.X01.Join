@@ -48,7 +48,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
     }
     public async Task UpdateConnectionId(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
     {
-        var user = await DynamoDbService.ReadUserAsync(message.Message.PlayerId, cancellationToken);
+        var user = await DynamoDbService.ReadUserAsync(message.Message!.PlayerId, cancellationToken);
 
         user.ConnectionId = message.Message.ConnectionId;
 
