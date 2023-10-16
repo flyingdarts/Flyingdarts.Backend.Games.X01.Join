@@ -45,7 +45,16 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         request.Darts = await DynamoDbService.ReadGameDartsAsync(long.Parse(request.GameId), cancellationToken);
         
         socketMessage.Metadata = CreateMetaData(request.Game, request.Darts, request.Players, request.Users);
+        
+        if (HasPlayerWon(request.Darts, request.PlayerId, request.Game.X01.Legs, request.Game.X01.Sets))
+        {
+            socketMessage.Metadata!["NextPlayer"] = null;
 
+            request.Game.Status = GameStatus.Finished;
+
+            await DynamoDbService.WriteGameAsync(request.Game, cancellationToken);
+        }
+        
         await NotifyRoomAsync(socketMessage, cancellationToken);
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
@@ -169,7 +178,7 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         // Group darts by set and then by player.
         var sets = darts.GroupBy(dart => dart.Set);
 
-        int totalLegsWon = 0;
+        var totalLegsWon = 0;
 
         // Calculate legs won in each set
         foreach (var set in sets)
