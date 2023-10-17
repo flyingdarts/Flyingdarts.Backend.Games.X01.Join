@@ -5,13 +5,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Flyingdarts.Persistence;
 using MediatR;
-using Flyingdarts.Lambdas.Shared;
 using System.Collections.Generic;
 using System.Linq;
 using Amazon.ApiGatewayManagementApi.Model;
 using System.IO;
 using System.Text;
 using Amazon.ApiGatewayManagementApi;
+using Flyingdarts.Backend.Shared.Dtos;
+using Flyingdarts.Backend.Shared.Models;
 
 public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazonApiGatewayManagementApi ApiGatewayClient) : IRequestHandler<JoinX01GameCommand, APIGatewayProxyResponse>
 {

@@ -1,9 +1,8 @@
 using Amazon.Lambda.APIGatewayEvents;
-using Flyingdarts.Lambdas.Shared;
-using Flyingdarts.Shared;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using System.Threading.Tasks;
+using Flyingdarts.Backend.Shared.Models;
 
 /// <summary>
 /// Represents the inner handler for processing APIGatewayProxyRequest.
