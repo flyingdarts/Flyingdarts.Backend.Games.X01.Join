@@ -46,9 +46,11 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         
         socketMessage.Metadata = CreateMetaData(request.Game, request.Darts, request.Players, request.Users);
         
-        if (HasPlayerWon(request.Darts, request.PlayerId, request.Game.X01.Legs, request.Game.X01.Sets))
+        if (HasAnyPlayerWon(request.Darts, request.Game!.X01.Legs, request.Game.X01.Sets,request.Players.Select(x => x.PlayerId.ToString()).ToList()))
         {
             socketMessage.Metadata!["NextPlayer"] = null;
+            socketMessage.Metadata!["WinningPlayer"] = GetWinningPlayer(request.Darts, request.Game.X01.Legs,
+                request.Game.X01.Sets, request.Players.Select(x => x.PlayerId.ToString()).ToList());
 
             request.Game.Status = GameStatus.Finished;
 
@@ -58,6 +60,23 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
         await NotifyRoomAsync(socketMessage, cancellationToken);
 
         return new APIGatewayProxyResponse { StatusCode = 200, Body = JsonSerializer.Serialize(socketMessage) };
+    }
+    public static string GetWinningPlayer(List<GameDart> darts, int legsRequired, int bestOfSets, List<string> playerIds)
+    {
+        foreach (var playerId in playerIds)
+        {
+            int setsWonByPlayer = CalculateSets(darts, playerId, legsRequired);
+            int setsRequiredToWin = (bestOfSets + 1) / 2;
+
+            // If the player has won the required number of sets in a "best of" scenario, they've won the game.
+            if (setsWonByPlayer >= setsRequiredToWin)
+            {
+                return playerId;
+            }
+        }
+
+        // If no player has won enough sets, return null to indicate that the game is still ongoing.
+        return null;
     }
     public async Task UpdateConnectionId(SocketMessage<JoinX01GameCommand> message, CancellationToken cancellationToken)
     {
@@ -225,6 +244,23 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
     
         // If the player has won the required number of sets in a "best of" scenario, they've won the game.
         return setsWon >= setsRequiredToWin;
+    }
+    public static bool HasAnyPlayerWon(List<GameDart> darts, int legsRequired, int bestOfSets, List<string> playerIds)
+    {
+        foreach (var playerId in playerIds)
+        {
+            int setsWonByPlayer = CalculateSets(darts, playerId, legsRequired);
+            int setsRequiredToWin = (bestOfSets + 1) / 2;
+
+            // If any player has won the required number of sets in a "best of" scenario, the game is won.
+            if (setsWonByPlayer >= setsRequiredToWin)
+            {
+                return true;
+            }
+        }
+
+        // If no player has won enough sets, the game is still ongoing.
+        return false;
     }
     public static void DetermineNextPlayer(Metadata metadata)
     {
