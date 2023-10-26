@@ -113,6 +113,8 @@ public record JoinX01GameCommandHandler(IDynamoDbService DynamoDbService, IAmazo
     public async Task UpdateGameStatus(Game game, GameStatus gameStatus, CancellationToken cancellationToken)
     {
         game.Status = gameStatus;
+        game.LSI1 = $"{gameStatus}#{game.GameId}";
+        game.SortKey = $"{game.GameId}#{gameStatus}";
         
         await DynamoDbService.WriteGameAsync(game, cancellationToken);
     }
